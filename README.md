@@ -110,6 +110,32 @@ That will:
 - Never enable DevTools in production without access control. Use `token` to require `x-devtools-token` or `?token=...`.
 - The plugin masks common sensitive headers (`authorization`, `cookie`) and fields (`password`, `token`, `jwt`, `secret`). Review and extend as needed.
 
+## Development & Publishing
+
+### GitHub Actions CI/CD
+
+This project includes automated CI/CD via GitHub Actions:
+
+- **Continuous Integration**: Builds and tests on Node.js 18.x and 20.x for all pushes to `main`/`develop` branches and pull requests
+- **Automated Publishing**: Publishes to npm automatically when a GitHub release is created
+
+#### Setup for Publishing
+
+To enable automated npm publishing, add your npm token as a repository secret:
+
+1. Generate an npm access token at [npmjs.com](https://www.npmjs.com/settings/tokens)
+2. Go to your GitHub repository → Settings → Secrets and variables → Actions
+3. Add a new repository secret named `NPM_TOKEN` with your npm token as the value
+
+#### Manual Publishing
+
+You can also publish manually:
+
+```bash
+npm run build
+npm publish --access public
+```
+
 ## License
 
 MIT
