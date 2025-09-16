@@ -1,0 +1,591 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Fastify DevTools</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 0; }
+    header { background: #0f172a; color: #fff; padding: 12px 16px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand h3 { margin: 0; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .spacer { width: 1px; height: 18px; background: rgba(255,255,255,0.12); }
+    .container { padding: 12px 16px; max-width: 1200px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
+    th, td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 8px 10px; font-size: 13px; }
+    tbody tr:nth-child(odd) { background: #fafafa; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .method-badge { font-weight: 700; color: #fff; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+    .GET { background: #2563eb; }
+    .POST { background: #059669; }
+    .PUT { background: #f59e0b; }
+    .DELETE { background: #ef4444; }
+    .PATCH { background: #7c3aed; }
+    .status { font-weight: 700; }
+    .s2xx { color: #059669; }
+    .s3xx { color: #d97706; }
+    .s4xx, .s5xx { color: #dc2626; }
+    .pill { display: inline-block; padding: 2px 6px; border-radius: 8px; background: #111827; color: #fff; font-size: 12px; }
+    .controls { margin-top: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px; border-radius: 10px; background: #0b1220; border: 1px solid rgba(255,255,255,0.08); }
+    .group { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 8px; padding-right: 10px; }
+    .group + .group { border-left: 1px solid rgba(255,255,255,0.08); padding-left: 12px; }
+    .group-title { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .8; margin-right: 4px; }
+    .controls input, .controls select, .controls button { font-size: 12px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 6px; }
+    .controls button { background: #111827; color: #fff; border-color: #111827; cursor: pointer; }
+    .url-cell { max-width: 520px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .notice { margin-left: auto; font-size: 12px; color: #6b7280; }
+    .slow-badge { display:inline-block; margin-left:6px; padding: 1px 6px; border-radius: 8px; background: #dc2626; color:#fff; font-size: 11px; font-weight:600; }
+    .slow-row { background: #fff7f7 !important; }
+    .btn-link { color: #2563eb; text-decoration: none; cursor: pointer; }
+    .btn-link:hover { text-decoration: underline; }
+    .controls .inline { display: inline-flex; align-items: center; gap: 6px; }
+    .sep { width: 1px; height: 18px; background: #e5e7eb; margin: 0 8px; display: inline-block; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable .sort-icon { margin-left: 6px; font-size: 10px; color: #6b7280; }
+    th.sortable.active .sort-icon { color: #111827; }
+    #pausedNew { display: none; background: #6b7280; }
+    /* Metrics */
+    .metrics { margin: 14px 0; }
+    .metrics-cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
+    .metric-card { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; padding: 10px 12px; }
+    .metric-card .label { font-size: 11px; color:#6b7280; text-transform: uppercase; letter-spacing: .04em; }
+    .metric-card .value { font-size: 18px; font-weight: 700; color:#0f172a; }
+    .routes-metrics table thead th { background: #f1f5f9; }
+    /* Loading spinners */
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: spin 1s linear infinite; vertical-align: middle; }
+    .spinner.light { border-color: rgba(0,0,0,0.2); border-top-color: #111827; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body data-base-path="{{BASE_PATH_ATTR}}" data-has-storage="{{HAS_STORAGE}}" data-slow-ms="{{SLOW_MS}}">
+  <header>
+    <div class="topbar">
+      <div class="brand">
+        <h3>Fastify DevTools</h3>
+        <span class="pill" title="Current captured entries">Total <span id="count">0</span></span>
+      </div>
+      <div class="top-actions">
+        <span id="sourceNotice" class="notice"></span>
+        <span class="spacer"></span>
+        <span id="globalSpinner" class="spinner" style="display:none;" title="Loading"></span>
+        <label class="inline" title="Pause live updates from SSE">
+          <input type="checkbox" id="pauseToggle" /> Pause
+        </label>
+        <span id="pausedNew" class="pill">+0</span>
+        <label class="inline" title="Auto-scroll to latest after updates">
+          <input type="checkbox" id="autoScrollToggle" /> Auto-scroll
+        </label>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="group">
+        <span class="group-title">📦 Source</span>
+        <select id="sourceToggle">
+          <option value="storage">Storage</option>
+          <option value="memory">Memory</option>
+        </select>
+        <button id="moreBtn">Load More</button>
+        <button id="purgeBtn">Purge Storage</button>
+      </div>
+      <div class="group">
+        <span class="group-title">🔎 Filters</span>
+        <select id="methodFilter">
+          <option value="">All Methods</option>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">All Status</option>
+          <option value="2xx">2xx</option>
+          <option value="3xx">3xx</option>
+          <option value="4xx">4xx</option>
+          <option value="5xx">5xx</option>
+        </select>
+        <input id="textFilter" placeholder="Filter by URL, headers, body" />
+      </div>
+      <div class="group">
+        <span class="group-title">⏱ Performance</span>
+        <label class="inline" title="Show only requests exceeding the slow threshold">
+          <input type="checkbox" id="slowOnly" /> Slow only
+        </label>
+        <label class="inline" title="Slow threshold in milliseconds">
+          <span>Threshold</span>
+          <input type="range" id="slowThreshold" min="100" max="10000" step="100" />
+          <input type="number" id="slowMsInput" min="0" style="width: 80px;" /> ms
+        </label>
+      </div>
+      <div class="group">
+        <span class="group-title">⭐ Presets</span>
+        <label class="inline" title="Saved filter presets">
+          <select id="presetSelect"><option value="">Presets…</option></select>
+          <button id="savePresetBtn">Save Preset</button>
+        </label>
+      </div>
+      <div class="group">
+        <span class="group-title">⚙️ Actions</span>
+        <button id="clearBtn">Clear</button>
+        <button id="exportJsonBtn">Export JSON</button>
+        <button id="exportNdjsonBtn">Export NDJSON</button>
+      </div>
+    </div>
+  </header>
+  <div class="container">
+    <div class="metrics">
+      <div class="metrics-cards">
+        <div class="metric-card"><div class="label">Requests</div><div class="value" id="mRequests">0</div></div>
+        <div class="metric-card"><div class="label">Error Rate</div><div class="value" id="mError">0%</div></div>
+        <div class="metric-card"><div class="label">p95</div><div class="value" id="mP95">0 ms</div></div>
+        <div class="metric-card"><div class="label">p99</div><div class="value" id="mP99">0 ms</div></div>
+      </div>
+      <div class="routes-metrics">
+        <table>
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>Count</th>
+              <th>Error %</th>
+              <th>p95</th>
+            </tr>
+          </thead>
+          <tbody id="routesMetrics"></tbody>
+        </table>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th data-sort="ts" class="sortable">Time</th>
+          <th data-sort="method" class="sortable">Method</th>
+          <th data-sort="status" class="sortable">Status</th>
+          <th data-sort="duration" class="sortable">Duration</th>
+          <th data-sort="url" class="sortable">URL</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <script>
+    const tbody = document.getElementById('tbody');
+    const countEl = document.getElementById('count');
+    const methodFilter = document.getElementById('methodFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const textFilter = document.getElementById('textFilter');
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get('token');
+    const tokenQs = tokenParam ? ('?token=' + encodeURIComponent(tokenParam)) : '';
+    const hasStorage = document.body.getAttribute('data-has-storage') === 'true';
+    const basePath = document.body.getAttribute('data-base-path');
+    const defaultSlowMs = Number(document.body.getAttribute('data-slow-ms') || '1000');
+    let slowMs = Number(localStorage.getItem('devtools.slowMs') || defaultSlowMs);
+    let slowOnly = localStorage.getItem('devtools.slowOnly') === 'true';
+    let sortKey = localStorage.getItem('devtools.sortKey') || 'ts';
+    let sortDir = localStorage.getItem('devtools.sortDir') || 'desc';
+    const entries = [];
+    let lastCursor = '';
+    let dataSource = hasStorage ? 'storage' : 'memory';
+    const sourceNotice = document.getElementById('sourceNotice');
+    const slowOnlyEl = document.getElementById('slowOnly');
+    const slowThresholdEl = document.getElementById('slowThreshold');
+    const slowMsInputEl = document.getElementById('slowMsInput');
+    const presetSelectEl = document.getElementById('presetSelect');
+    const savePresetBtn = document.getElementById('savePresetBtn');
+    const pauseToggleEl = document.getElementById('pauseToggle');
+    const autoScrollToggleEl = document.getElementById('autoScrollToggle');
+    const pausedNewEl = document.getElementById('pausedNew');
+    const mRequests = document.getElementById('mRequests');
+    const mError = document.getElementById('mError');
+    const mP95 = document.getElementById('mP95');
+    const mP99 = document.getElementById('mP99');
+    const routesMetricsBody = document.getElementById('routesMetrics');
+    const globalSpinner = document.getElementById('globalSpinner');
+    const moreBtn = document.getElementById('moreBtn');
+
+    function fmtTime(ts) {
+      try { return new Date(ts).toLocaleTimeString(); } catch { return String(ts); }
+    }
+    function statusClass(sc) {
+      if (!sc) return '';
+      if (sc >= 500) return 's5xx';
+      if (sc >= 400) return 's4xx';
+      if (sc >= 300) return 's3xx';
+      return 's2xx';
+    }
+    function render() {
+      const methodSel = methodFilter.value;
+      const statusSel = statusFilter.value;
+      const textSel = (textFilter.value || '').toLowerCase();
+      const filtered = entries.filter((e) => {
+        if (methodSel && e.method !== methodSel) return false;
+        const sc = e.response && e.response.statusCode;
+        if (statusSel) {
+          if (statusSel === '2xx' && !(sc >= 200 && sc < 300)) return false;
+          if (statusSel === '3xx' && !(sc >= 300 && sc < 400)) return false;
+          if (statusSel === '4xx' && !(sc >= 400 && sc < 500)) return false;
+          if (statusSel === '5xx' && !(sc >= 500)) return false;
+        }
+        if (textSel) {
+          const hay = [e.url, JSON.stringify(e.headers||{}), JSON.stringify(e.body||{}), JSON.stringify(e.response||{})].join(' ').toLowerCase();
+          if (!hay.includes(textSel)) return false;
+        }
+        if (slowOnly && !(typeof e.durationMs === 'number' && e.durationMs > slowMs)) return false;
+        return true;
+      });
+
+      // Metrics summary
+      try {
+        const durs = filtered.map(e => Number(e.durationMs || 0)).filter(n => Number.isFinite(n) && n >= 0).sort((a,b)=>a-b);
+        const n = durs.length;
+        function pct(p) { if (!n) return 0; const k = Math.min(n-1, Math.max(0, Math.ceil((p/100)*n)-1)); return durs[k]; }
+        const errs = filtered.filter(e => (e.response && e.response.statusCode >= 400)).length;
+        const errPct = n ? Math.round((errs/n)*100) : 0;
+        mRequests.textContent = String(n);
+        mError.textContent = errPct + '%';
+        mP95.textContent = pct(95) + ' ms';
+        mP99.textContent = pct(99) + ' ms';
+        const byRoute = new Map();
+        for (const e of filtered) {
+          const key = e.route || '(unknown)';
+          let rec = byRoute.get(key);
+          if (!rec) { rec = { count:0, errs:0, durs:[] }; byRoute.set(key, rec); }
+          rec.count++;
+          if (e.response && e.response.statusCode >= 400) rec.errs++;
+          if (typeof e.durationMs === 'number') rec.durs.push(e.durationMs);
+        }
+        const top = Array.from(byRoute.entries()).map(([route, r]) => {
+          r.durs.sort((a,b)=>a-b); const m=r.durs.length; const p95 = m? r.durs[Math.min(m-1, Math.ceil(0.95*m)-1)]:0; const errRate = r.count? Math.round((r.errs/r.count)*100):0; return { route, count:r.count, p95, errRate };
+        }).sort((a,b)=> b.count - a.count).slice(0, 5);
+        routesMetricsBody.innerHTML = top.map(t => '<tr>'
+          + '<td><code>' + (t.route || '') + '</code></td>'
+          + '<td>' + t.count + '</td>'
+          + '<td>' + t.errRate + '%</td>'
+          + '<td>' + t.p95 + ' ms</td>'
+        + '</tr>').join('');
+      } catch {}
+      // Sorting
+      const rows = filtered.slice();
+      rows.sort((a, b) => {
+        let av, bv, cmp = 0;
+        switch (sortKey) {
+          case 'ts': av = a.ts; bv = b.ts; break;
+          case 'method': av = a.method; bv = b.method; break;
+          case 'status': av = (a.response && a.response.statusCode) || 0; bv = (b.response && b.response.statusCode) || 0; break;
+          case 'duration': av = a.durationMs || 0; bv = b.durationMs || 0; break;
+          case 'url': av = a.url || ''; bv = b.url || ''; break;
+          default: av = 0; bv = 0;
+        }
+        if (av < bv) cmp = -1; else if (av > bv) cmp = 1; else cmp = 0;
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+      tbody.innerHTML = '';
+      for (let i = 0; i < rows.length; i++) {
+        const e = rows[i];
+        const sc = e.response && e.response.statusCode;
+        const scCls = statusClass(sc);
+        const tr = document.createElement('tr');
+        const isSlow = typeof e.durationMs === 'number' && e.durationMs > slowMs;
+        if (isSlow) tr.classList.add('slow-row');
+        const durationCell = (e.durationMs || '') + ' ms' + (isSlow ? ' <span class="slow-badge" title=">' + slowMs + ' ms">SLOW</span>' : '');
+        tr.innerHTML = [
+          '<td>' + fmtTime(e.ts) + '</td>',
+          '<td><span class="method-badge ' + e.method + '">' + e.method + '</span></td>',
+          '<td class="status ' + scCls + '">' + (sc || '') + '</td>',
+          '<td>' + durationCell + '</td>',
+          '<td class="url-cell"><code title=' + JSON.stringify(e.url) + '>' + e.url + '</code></td>',
+          '<td>'
+            + '<a class="btn-link" href=' + JSON.stringify(basePath + '/entry/' + e.id + (tokenQs || '')) + '>Open</a>'
+            + ' · <a class="btn-link" data-action="replay" data-id=' + JSON.stringify(e.id) + '>Replay</a>'
+            + ' · <a class="btn-link" data-action="curl" data-id=' + JSON.stringify(e.id) + '>cURL</a>'
+          + '</td>'
+        ].join('');
+        tbody.appendChild(tr);
+      }
+      countEl.textContent = String(entries.length);
+      if (localStorage.getItem('devtools.autoScroll') !== 'false' && !paused) {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      }
+    }
+
+    function buildStorageQuery(extra) {
+      const params = new URLSearchParams();
+      params.set('limit', '100');
+      const m = methodFilter.value; if (m) params.set('method', m);
+      const s = statusFilter.value; if (s) params.set('status', s);
+      const q = textFilter.value; if (q) params.set('q', q);
+      if (extra && extra.beforeId) params.set('beforeId', extra.beforeId);
+      const qs = params.toString();
+      return basePath + '/store/requests' + (qs ? ('?' + qs) : '') + (tokenQs ? (qs ? ('&' + tokenQs.slice(1)) : tokenQs) : '');
+    }
+
+    async function loadInitial() {
+      function showLoading(v){ globalSpinner.style.display = v ? 'inline-block' : 'none'; }
+      showLoading(true);
+      try {
+        const st = await fetch(basePath + '/status' + tokenQs).then(r => r.json()).catch(() => null);
+        if (st) {
+          sourceNotice.textContent = (sourceNotice.textContent ? (sourceNotice.textContent + ' | ') : '') +
+            ('Mongo: ' + (st.mongoConnected ? 'connected' : 'down') + ', Buffer: ' + st.bufferLength);
+        }
+      } catch {}
+      if (dataSource === 'memory') {
+        const res = await fetch(basePath + '/requests' + tokenQs);
+        const list = await res.json();
+        if (Array.isArray(list)) {
+          for (const e of list) entries.push(e);
+          render();
+        }
+        sourceNotice.textContent = 'Source: Memory';
+        showLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(buildStorageQuery());
+        const list = await res.json();
+        if (Array.isArray(list)) {
+          for (const e of list) entries.push(e);
+          if (list.length) {
+            lastCursor = list[list.length - 1]._id;
+            sourceNotice.textContent = 'Source: Storage';
+          } else {
+            dataSource = 'memory';
+            sourceNotice.textContent = 'Source: Storage empty → showing Memory';
+            const res2 = await fetch(basePath + '/requests' + tokenQs);
+            const list2 = await res2.json();
+            if (Array.isArray(list2)) {
+              for (const e of list2) entries.push(e);
+            }
+          }
+          render();
+        } else {
+          dataSource = 'memory';
+          sourceNotice.textContent = 'Source: Storage error → showing Memory';
+          const res2 = await fetch(basePath + '/requests' + tokenQs);
+          const list2 = await res2.json();
+          if (Array.isArray(list2)) {
+            for (const e of list2) entries.push(e);
+          }
+          render();
+        }
+      } catch (err) {
+        dataSource = 'memory';
+        sourceNotice.textContent = 'Source: Storage unavailable → showing Memory';
+        const res2 = await fetch(basePath + '/requests' + tokenQs);
+        const list2 = await res2.json();
+        if (Array.isArray(list2)) {
+          for (const e of list2) entries.push(e);
+        }
+        render();
+      } finally { showLoading(false); }
+    }
+
+    async function loadMore() {
+      if (dataSource !== 'storage' || !lastCursor) return;
+      const url = buildStorageQuery({ beforeId: lastCursor });
+      const prev = moreBtn.textContent;
+      moreBtn.textContent = 'Loading...';
+      moreBtn.disabled = true;
+      const res = await fetch(url);
+      const list = await res.json();
+      if (Array.isArray(list) && list.length) {
+        for (const e of list) entries.push(e);
+        lastCursor = list[list.length - 1]._id;
+        render();
+      }
+      moreBtn.textContent = prev;
+      moreBtn.disabled = false;
+    }
+
+    function connectSSE() {
+      const es = new EventSource(basePath + '/events' + tokenQs);
+      es.onmessage = (ev) => {
+        try {
+          const e = JSON.parse(ev.data);
+          if (paused) {
+            pausedQueue.push(e);
+            updatePausedBadge();
+          } else {
+            entries.push(e);
+            render();
+          }
+        } catch (err) { console.error('Failed to parse event', err); }
+      };
+      es.onerror = (err) => { console.error('SSE error', err); };
+    }
+
+    let paused = localStorage.getItem('devtools.paused') === 'true';
+    let autoScroll = localStorage.getItem('devtools.autoScroll');
+    autoScroll = (autoScroll === null) ? true : (autoScroll === 'true');
+    pauseToggleEl.checked = paused;
+    autoScrollToggleEl.checked = !!autoScroll;
+    const pausedQueue = [];
+    function updatePausedBadge() {
+      const n = pausedQueue.length;
+      if (paused && n > 0) {
+        pausedNewEl.textContent = '+' + n;
+        pausedNewEl.style.display = 'inline-block';
+      } else {
+        pausedNewEl.style.display = 'none';
+      }
+    }
+    pauseToggleEl.addEventListener('change', () => {
+      paused = pauseToggleEl.checked;
+      localStorage.setItem('devtools.paused', String(paused));
+      if (!paused && pausedQueue.length) {
+        while (pausedQueue.length) entries.push(pausedQueue.shift());
+        updatePausedBadge();
+        render();
+      } else {
+        updatePausedBadge();
+      }
+    });
+    autoScrollToggleEl.addEventListener('change', () => {
+      autoScroll = autoScrollToggleEl.checked;
+      localStorage.setItem('devtools.autoScroll', String(autoScroll));
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch(basePath + '/clear' + tokenQs, { method: 'POST' });
+        if (res.ok) {
+          entries.splice(0, entries.length);
+          render();
+        }
+      } catch (e) { console.error('Failed to clear', e); }
+    });
+    document.getElementById('moreBtn').addEventListener('click', loadMore);
+    const sourceToggleEl = document.getElementById('sourceToggle');
+    sourceToggleEl.addEventListener('change', async () => {
+      dataSource = sourceToggleEl.value;
+      entries.splice(0, entries.length);
+      lastCursor = '';
+      await loadInitial();
+    });
+
+    if (!hasStorage) {
+      sourceToggleEl.value = 'memory';
+      sourceToggleEl.disabled = true;
+      (document.getElementById('moreBtn')).disabled = true;
+      (document.getElementById('purgeBtn')).disabled = true;
+      (document.getElementById('exportJsonBtn')).disabled = true;
+      (document.getElementById('exportNdjsonBtn')).disabled = true;
+    }
+
+    function buildExportQuery() {
+      const params = new URLSearchParams();
+      const m = methodFilter.value; if (m) params.set('method', m);
+      const s = statusFilter.value; if (s) params.set('status', s);
+      const q = textFilter.value; if (q) params.set('q', q);
+      return params.toString();
+    }
+    document.getElementById('exportJsonBtn').addEventListener('click', () => {
+      const qs = buildExportQuery();
+      const url = basePath + '/store/export.json' + (qs ? ('?' + qs) : '') + (tokenQs ? (qs ? ('&' + tokenQs.slice(1)) : tokenQs) : '');
+      window.open(url, '_blank');
+    });
+    document.getElementById('exportNdjsonBtn').addEventListener('click', () => {
+      const qs = buildExportQuery();
+      const url = basePath + '/store/export.ndjson' + (qs ? ('?' + qs) : '') + (tokenQs ? (qs ? ('&' + tokenQs.slice(1)) : tokenQs) : '');
+      window.open(url, '_blank');
+    });
+
+    methodFilter.addEventListener('change', render);
+    statusFilter.addEventListener('change', render);
+    textFilter.addEventListener('input', () => {
+      clearTimeout(window.__devtoolsT);
+      window.__devtoolsT = setTimeout(render, 150);
+    });
+
+    document.querySelectorAll('th.sortable').forEach(th => {
+      if (!th.getAttribute('data-label')) th.setAttribute('data-label', th.textContent.trim());
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-sort');
+        if (!key) return;
+        if (sortKey === key) {
+          sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+        } else {
+          sortKey = key;
+          sortDir = (key === 'ts') ? 'desc' : 'asc';
+        }
+        localStorage.setItem('devtools.sortKey', sortKey);
+        localStorage.setItem('devtools.sortDir', sortDir);
+        updateSortIndicators();
+        render();
+      });
+    });
+
+    function updateSortIndicators() {
+      document.querySelectorAll('th.sortable').forEach(th => {
+        const key = th.getAttribute('data-sort');
+        const label = th.getAttribute('data-label') || th.textContent.trim();
+        if (key === sortKey) {
+          th.classList.add('active');
+          th.innerHTML = label + ' <span class="sort-icon">' + (sortDir === 'asc' ? '▲' : '▼') + '</span>';
+        } else {
+          th.classList.remove('active');
+          th.innerHTML = label;
+        }
+      });
+    }
+    updateSortIndicators();
+
+    function buildCurl(entry) {
+      const url = window.location.origin + entry.url;
+      const parts = ['curl', '-X', entry.method, JSON.stringify(url)];
+      const headers = entry.headers || {};
+      Object.keys(headers).forEach((key) => {
+        const low = key.toLowerCase();
+        if (low === 'host' || low === 'content-length' || low === 'connection' || low === 'transfer-encoding') return;
+        const val = headers[key];
+        parts.push('-H');
+        parts.push(JSON.stringify(key + ': ' + String(val)));
+      });
+      let dataTxt = '';
+      if (entry.body !== undefined && entry.body !== null) {
+        if (typeof entry.body === 'string') {
+          dataTxt = entry.body;
+        } else {
+          try { dataTxt = JSON.stringify(entry.body); } catch { dataTxt = String(entry.body); }
+        }
+        parts.push('--data-raw');
+        parts.push(JSON.stringify(dataTxt));
+      }
+      return parts.join(' ');
+    }
+    tbody.addEventListener('click', async (ev) => {
+      const a = ev.target.closest('a');
+      if (!a) return;
+      const action = a.getAttribute('data-action');
+      if (!action) return;
+      ev.preventDefault();
+      const id = a.getAttribute('data-id');
+      const entry = entries.find(e => e.id === id);
+      if (!entry) return;
+      if (action === 'curl') {
+        const cmd = buildCurl(entry);
+        try { await navigator.clipboard.writeText(cmd); alert('cURL copied'); } catch { alert('Failed to copy'); }
+      } else if (action === 'replay') {
+        try {
+          const res = await fetch(basePath + '/replay' + (tokenQs ? (tokenQs.startsWith('?') ? tokenQs : '?' + tokenQs) : ''), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+          });
+          const json = await res.json();
+          if (!res.ok || !json.ok) throw new Error(json.error || ('HTTP ' + res.status));
+          alert('Replayed: ' + json.statusCode);
+        } catch (err) { alert('Replay failed: ' + (err && err.message || String(err))); }
+      }
+    });
+
+    loadInitial();
+    connectSSE();
+  </script>
+</body>
+</html>

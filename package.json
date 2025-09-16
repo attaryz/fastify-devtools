@@ -1,0 +1,61 @@
+{
+  "name": "@attaryz/fastify-devtools",
+  "version": "0.1.0",
+  "description": "Fastify DevTools plugin: dashboard, entry view, metrics, replay, and storage",
+  "keywords": [
+    "fastify",
+    "devtools",
+    "development",
+    "debugging",
+    "dashboard",
+    "plugin",
+    "monitoring",
+    "metrics"
+  ],
+  "license": "MIT",
+  "author": "Abdullah Ali",
+  "homepage": "https://github.com/attaryz/fastify-devtools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/attaryz/fastify-devtools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/attaryz/fastify-devtools/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node ./scripts/copy-views.js",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "publish": "npm publish --access public"
+  },
+  "peerDependencies": {
+    "fastify": ">=4.0.0",
+    "fastify-plugin": ">=4.0.0",
+    "mongoose": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "mongoose": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "fastify": "^4.0.0",
+    "fastify-plugin": "^4.0.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.4.0"
+  }
+}

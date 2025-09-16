@@ -1,0 +1,540 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DevTools Entry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 0; }
+    header { background: #0f172a; color: #fff; padding: 12px 16px; display:flex; align-items:center; gap:12px; justify-content: space-between; }
+    .title { display:flex; align-items:center; gap:12px; }
+    .container { padding: 16px; max-width: 1200px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .card-head { display:flex; align-items:center; justify-content: space-between; gap:8px; padding: 12px 14px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+    .card-head h4 { margin: 0; font-size: 14px; }
+    .card .body { padding: 12px 14px; }
+    .section-actions { display:flex; align-items:center; gap:6px; }
+    pre {
+      background: #0b1220;
+      color: #e5e7eb;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      overflow-x: hidden;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .row { margin-bottom: 10px; }
+    .label { color:#6b7280; font-size: 12px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+    .meta-item { display:flex; align-items:center; gap:6px; }
+    .method-badge { font-weight: 700; color: #fff; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+    .GET { background: #2563eb; }
+    .POST { background: #059669; }
+    .PUT { background: #f59e0b; }
+    .DELETE { background: #ef4444; }
+    .PATCH { background: #7c3aed; }
+    .status { font-weight:700; }
+    .s2xx { color: #059669; }
+    .s3xx { color: #d97706; }
+    .s4xx, .s5xx { color: #dc2626; }
+    .btn { font-size: 12px; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #111827; color: #fff; cursor: pointer; }
+    .btn.secondary { background: #ffffff; color: #111827; }
+    .toolbar { display:flex; align-items:center; gap:8px; }
+    .url { max-width: 780px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #backLink { cursor: pointer; }
+    #backLink:hover { text-decoration: underline; }
+    .slow-badge { display:inline-block; margin-left:6px; padding: 1px 6px; border-radius: 8px; background: #dc2626; color:#fff; font-size: 11px; font-weight:600; }
+    /* Timings waterfall */
+    .waterfall { display: grid; grid-template-columns: 120px 1fr auto; gap: 6px 10px; align-items: center; }
+    .wf-row { display: contents; }
+    .wf-label { color:#6b7280; font-size: 12px; white-space: nowrap; }
+    .wf-bar-wrap { background:#e5e7eb; border-radius: 6px; overflow: hidden; height: 10px; position: relative; }
+    .wf-bar { background:#2563eb; height: 100%; }
+    .wf-bar.secondary { background:#7c3aed; }
+    .wf-bar.tertiary { background:#059669; }
+    .wf-dur { font-size: 12px; color:#111827; white-space: nowrap; }
+    /* JSON token colors */
+    .json-key { color: #93c5fd; }
+    .json-string { color: #34d399; }
+    .json-number { color: #fbbf24; }
+    .json-boolean { color: #fca5a5; }
+    .json-null { color: #a78bfa; }
+    /* Loading spinner */
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #111827; border-radius: 50%; display: inline-block; animation: spin 1s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Copy link */
+    .copy-link { background: none; border: none; padding: 0; margin-left: 8px; color: #2563eb; cursor: pointer; font-size: 12px; }
+    .copy-link:hover { text-decoration: underline; }
+    /* Copy icon overlay */
+    .box { position: relative; }
+    .copy-icon { position: absolute; top: 6px; right: 8px; background: rgba(255,255,255,0.9); border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
+    .box:hover .copy-icon { opacity: 1; }
+    .copy-icon svg { width: 14px; height: 14px; display: block; }
+    /* Toast */
+    .toast { position: fixed; right: 16px; bottom: 16px; background: #111827; color: #fff; padding: 8px 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.2); opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; font-size: 12px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body data-slow-ms="{{SLOW_MS}}" data-base-path="{{BASE_PATH_ATTR}}" data-entry-id="{{ENTRY_ID}}">
+  <header>
+    <div class="title">
+      <a id="backLink" style="color:#fff;">Back</a>
+      <h3 style="margin:0;">Entry {{ENTRY_ID}}</h3>
+    </div>
+    <div class="toolbar">
+      <a id="rawLink" class="btn secondary" target="_blank" rel="noreferrer noopener">Raw JSON</a>
+      <button id="copyReq" class="btn secondary">Copy Request JSON</button>
+      <button id="copyRes" class="btn secondary">Copy Response JSON</button>
+      <button id="replayBtn" class="btn secondary" title="Replay this request on the server">Replay</button>
+      <button id="curlBtn" class="btn secondary" title="Copy as cURL">Copy cURL</button>
+      <button id="copyUrlBtn" class="btn secondary" title="Copy full URL">Copy URL</button>
+      <button id="copyFetchBtn" class="btn secondary" title="Copy as fetch()">Copy fetch()</button>
+      <button id="copyMetaBtn" class="btn secondary" title="Copy meta information">Copy Meta</button>
+      <span id="entrySpinner" class="spinner" style="display:none;" title="Loading"></span>
+    </div>
+  </header>
+  <div class="container">
+    <div id="meta" class="meta" style="margin-bottom:12px;"></div>
+    <div class="card" id="timingsCard" style="display:none;">
+      <div class="card-head">
+        <h4>Timings</h4>
+      </div>
+      <div class="body">
+        <div class="waterfall" id="wf"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-head">
+          <h4>Request</h4>
+          <div class="section-actions">
+            <button id="reqCollapseBtn" class="btn secondary">Collapse</button>
+            <button id="reqModeBtn" class="btn secondary">Raw</button>
+          </div>
+        </div>
+        <div class="body" id="reqCardBody">
+          <div class="row"><span class="label">Headers</span><button id="copyReqHeaders" class="copy-link">Copy</button></div>
+          <div class="box"><button id="copyReqHeadersIcon" class="copy-icon" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9H15V15H9V9Z" stroke="#111827" stroke-width="2"/><path d="M5 5H15V7H7V17H5V5Z" fill="#111827"/></svg>
+          </button><pre id="reqHeaders"></pre></div>
+          <div class="row"><span class="label">Query</span><button id="copyReqQuery" class="copy-link">Copy</button></div>
+          <div class="box"><button id="copyReqQueryIcon" class="copy-icon" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9H15V15H9V9Z" stroke="#111827" stroke-width="2"/><path d="M5 5H15V7H7V17H5V5Z" fill="#111827"/></svg>
+          </button><pre id="reqQuery"></pre></div>
+          <div class="row"><span class="label">Params</span><button id="copyReqParams" class="copy-link">Copy</button></div>
+          <div class="box"><button id="copyReqParamsIcon" class="copy-icon" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9H15V15H9V9Z" stroke="#111827" stroke-width="2"/><path d="M5 5H15V7H7V17H5V5Z" fill="#111827"/></svg>
+          </button><pre id="reqParams"></pre></div>
+          <div class="row"><span class="label">Body</span><button id="copyReqBody" class="copy-link">Copy</button></div>
+          <div class="box"><button id="copyReqBodyIcon" class="copy-icon" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9H15V15H9V9Z" stroke="#111827" stroke-width="2"/><path d="M5 5H15V7H7V17H5V5Z" fill="#111827"/></svg>
+          </button><pre id="reqBody"></pre></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h4>Response</h4>
+          <div class="section-actions">
+            <button id="resCollapseBtn" class="btn secondary">Collapse</button>
+            <button id="resModeBtn" class="btn secondary">Raw</button>
+          </div>
+        </div>
+        <div class="body" id="resCardBody">
+          <div class="row"><span class="label">Headers</span><button id="copyResHeaders" class="copy-link">Copy</button></div>
+          <div class="box"><button id="copyResHeadersIcon" class="copy-icon" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9H15V15H9V9Z" stroke="#111827" stroke-width="2"/><path d="M5 5H15V7H7V17H5V5Z" fill="#111827"/></svg>
+          </button><pre id="resHeaders"></pre></div>
+          <div class="row"><span class="label">Body</span><button id="copyResBody" class="copy-link">Copy</button></div>
+          <div class="box"><button id="copyResBodyIcon" class="copy-icon" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9H15V15H9V9Z" stroke="#111827" stroke-width="2"/><path d="M5 5H15V7H7V17H5V5Z" fill="#111827"/></svg>
+          </button><pre id="resBody"></pre></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get('token');
+    const tokenQs = tokenParam ? ('?token=' + encodeURIComponent(tokenParam)) : '';
+    let basePath = document.body.getAttribute('data-base-path') || '';
+    const entryId = document.body.getAttribute('data-entry-id');
+    if (!basePath || basePath.indexOf('{{') !== -1) {
+      const m = window.location.pathname.match(/^(.*)\/entry\//);
+      basePath = (m && m[1]) || '/__devtools';
+    }
+    if (basePath && !basePath.startsWith('/')) basePath = '/' + basePath;
+    const statusClass = (sc) => !sc ? '' : (sc >= 500 ? 's5xx' : (sc >= 400 ? 's4xx' : (sc >= 300 ? 's3xx' : 's2xx')));
+    const slowMs = Number(document.body.getAttribute('data-slow-ms') || '1000');
+    const fmtTime = (ts) => { try { return new Date(ts).toLocaleString(); } catch { return String(ts); } };
+    const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function tryParseJsonString(text) {
+      if (typeof text !== 'string') return { ok: false };
+      let t = text.trim();
+      if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);
+      if (t.startsWith(")]}", 0)) {
+        const idx = t.search(/[\{\[]/);
+        if (idx > -1) t = t.slice(idx);
+      }
+      if (t.startsWith('while(1);')) t = t.slice('while(1);'.length).trim();
+      if (t.startsWith('for(;;);')) t = t.slice('for(;;);'.length).trim();
+      try {
+        const v = JSON.parse(t);
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
+            try { return { ok: true, value: JSON.parse(s) }; } catch { return { ok: true, value: v }; }
+          }
+        }
+        return { ok: true, value: v };
+      } catch { return { ok: false }; }
+    }
+
+    function renderJson(id, value, pretty = true) {
+      const el = document.getElementById(id);
+      try {
+        let obj = (value === undefined) ? null : value;
+        if (typeof value === 'string') {
+          const pr = tryParseJsonString(value);
+          if (pr.ok && (Array.isArray(pr.value) || typeof pr.value === 'object')) {
+            obj = pr.value;
+          }
+        }
+        if (!pretty) {
+          if (typeof obj === 'string' || obj === null) {
+            el.textContent = obj === null ? 'null' : obj;
+          } else {
+            el.textContent = JSON.stringify(obj);
+          }
+          return;
+        }
+        if (typeof obj === 'string' || obj === null) { el.textContent = obj === null ? 'null' : obj; return; }
+        el.innerHTML = prettyJsonHtml(obj);
+      } catch (err) {
+        el.textContent = String(value ?? '');
+      }
+    }
+
+    function prettyJsonHtml(value, indent = 0) {
+      const pad = (n) => '&nbsp;'.repeat(n);
+      const nl = '\n';
+      const keySpan = (k) => '<span class="json-key">"' + escapeHtml(k) + '":</span> ';
+      const strSpan = (s) => '<span class="json-string">"' + escapeHtml(s) + '"</span>';
+      const numSpan = (n) => '<span class="json-number">' + n + '</span>';
+      const boolSpan = (b) => '<span class="json-boolean">' + b + '</span>';
+      const nullSpan = () => '<span class="json-null">null</span>';
+      if (value === null) return nullSpan();
+      if (typeof value === 'string') return strSpan(value);
+      if (typeof value === 'number') return numSpan(String(value));
+      if (typeof value === 'boolean') return boolSpan(String(value));
+      if (Array.isArray(value)) {
+        if (value.length === 0) return '[]';
+        let out = '[' + nl;
+        for (let i = 0; i < value.length; i++) {
+          out += pad((indent + 2)) + prettyJsonHtml(value[i], indent + 2);
+          if (i < value.length - 1) out += ',';
+          out += nl;
+        }
+        out += pad(indent) + ']';
+        return out;
+      }
+      if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (keys.length === 0) return '{}';
+        let out = '{' + nl;
+        for (let i = 0; i < keys.length; i++) {
+          const k = keys[i];
+          out += pad((indent + 2)) + keySpan(k) + prettyJsonHtml(value[k], indent + 2);
+          if (i < keys.length - 1) out += ',';
+          out += nl;
+        }
+        out += pad(indent) + '}';
+        return out;
+      }
+      return escapeHtml(String(value));
+    }
+
+    async function load() {
+      let e;
+      const replayBtn = document.getElementById('replayBtn');
+      const curlBtn = document.getElementById('curlBtn');
+      const copyReqBtn = document.getElementById('copyReq');
+      const copyResBtn = document.getElementById('copyRes');
+      const spinner = document.getElementById('entrySpinner');
+      function setLoading(v) {
+        if (spinner) spinner.style.display = v ? 'inline-block' : 'none';
+        const copyUrlBtn = document.getElementById('copyUrlBtn');
+        const copyFetchBtn = document.getElementById('copyFetchBtn');
+        [replayBtn, curlBtn, copyReqBtn, copyResBtn, copyUrlBtn, copyFetchBtn].forEach(function(btn) { if (btn) btn && (btn.disabled = v); });
+      }
+      setLoading(true);
+      try {
+        const resp = await fetch(basePath + '/requests/' + entryId + tokenQs);
+        if (!resp.ok) {
+          document.getElementById('meta').innerHTML = '<span class="status s4xx">[' + resp.status + ']</span> Failed to load entry';
+          return;
+        }
+        e = await resp.json();
+      } catch (err) {
+        document.getElementById('meta').innerHTML = '<span class="status s4xx">[ERR]</span> ' + escapeHtml(String(err));
+        return;
+      } finally { setLoading(false); }
+
+      const meta = document.getElementById('meta');
+      const sc = e.response && e.response.statusCode;
+      const isSlow = typeof e.durationMs === 'number' && e.durationMs > slowMs;
+      const size = (typeof e.responseSizeBytes === 'number') ? (e.responseSizeBytes + ' B') : '';
+      const ctype = e.contentType ? (' (' + e.contentType + ')') : '';
+      meta.innerHTML = ''
+        + '<span class="method-badge ' + e.method + '">' + e.method + '</span>'
+        + '<span class="url"><code title=' + JSON.stringify(e.url) + '>' + e.url + '</code></span>'
+        + '<span class="status ' + statusClass(sc) + '">[' + (sc || '') + ']</span>'
+        + '<span class="meta-item"><span class="label">Duration</span><code>' + (e.durationMs || '') + ' ms</code>' + (isSlow ? ' <span class="slow-badge" title=">' + slowMs + ' ms">SLOW</span>' : '') + '</span>'
+        + '<span class="meta-item"><span class="label">Response</span><code>' + size + ctype + '</code></span>'
+        + '<span class="meta-item"><span class="label">Time</span><code>' + fmtTime(e.ts) + '</code></span>'
+        + (e.requestId ? ('<span class="meta-item"><span class="label">Request ID</span><code>' + e.requestId + '</code></span>') : '');
+
+      document.getElementById('rawLink').href = basePath + '/requests/' + entryId + tokenQs;
+      const back = document.getElementById('backLink');
+      back.href = basePath + (window.location.search || '');
+      back.onclick = function(ev) {
+        ev.preventDefault();
+        if (window.history.length > 1) {
+          history.back();
+        } else {
+          window.location.href = back.href;
+        }
+      };
+
+      let reqPretty = true;
+      let resPretty = true;
+      let reqCollapsed = false;
+      let resCollapsed = false;
+
+      function renderPanels() {
+        try { renderJson('reqHeaders', e.headers || {}, true); } catch {}
+        try { renderJson('reqQuery', e.query || {}, true); } catch {}
+        try { renderJson('reqParams', e.params || {}, true); } catch {}
+        try { renderJson('reqBody', e.body ?? null, reqPretty); } catch {}
+        const r = e.response || {};
+        try { renderJson('resHeaders', r.headers || {}, true); } catch {}
+        try { renderJson('resBody', r.body ?? null, resPretty); } catch {}
+      }
+      renderPanels();
+
+      function updateButtons() {
+        document.getElementById('reqModeBtn').textContent = reqPretty ? 'Raw' : 'Pretty';
+        document.getElementById('resModeBtn').textContent = resPretty ? 'Raw' : 'Pretty';
+        document.getElementById('reqCollapseBtn').textContent = reqCollapsed ? 'Expand' : 'Collapse';
+        document.getElementById('resCollapseBtn').textContent = resCollapsed ? 'Expand' : 'Collapse';
+      }
+      updateButtons();
+
+      document.getElementById('reqModeBtn').onclick = function() { reqPretty = !reqPretty; renderPanels(); updateButtons(); };
+      document.getElementById('resModeBtn').onclick = function() { resPretty = !resPretty; renderPanels(); updateButtons(); };
+      document.getElementById('reqCollapseBtn').onclick = function() {
+        reqCollapsed = !reqCollapsed;
+        document.getElementById('reqCardBody').style.display = reqCollapsed ? 'none' : '';
+        updateButtons();
+      };
+      document.getElementById('resCollapseBtn').onclick = function() {
+        resCollapsed = !resCollapsed;
+        document.getElementById('resCardBody').style.display = resCollapsed ? 'none' : '';
+        updateButtons();
+      };
+
+      document.getElementById('copyReq').onclick = async function() {
+        let bodyVal = e.body;
+        if (typeof bodyVal === 'string') {
+          const t = bodyVal.trim();
+          if (((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']')))) {
+            try { bodyVal = JSON.parse(bodyVal); } catch {}
+          }
+        }
+        const txt = JSON.stringify({ headers: e.headers, query: e.query, params: e.params, body: bodyVal }, null, 2);
+        try { await navigator.clipboard.writeText(txt); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyRes').onclick = async function() {
+        let respObj = e.response || {};
+        if (respObj && typeof respObj.body === 'string') {
+          const t = respObj.body.trim();
+          if (((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']')))) {
+            try { respObj = Object.assign({}, respObj, { body: JSON.parse(respObj.body) }); } catch {}
+          }
+        }
+        const txt = JSON.stringify(respObj, null, 2);
+        try { await navigator.clipboard.writeText(txt); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+
+      document.getElementById('copyReqHeaders').onclick = async function() {
+        try { await navigator.clipboard.writeText(JSON.stringify(e.headers || {}, null, 2)); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyReqBody').onclick = async function() {
+        let txt = '';
+        if (typeof e.body === 'string') {
+          const pr = tryParseJsonString(e.body);
+          if (pr.ok && (Array.isArray(pr.value) || typeof pr.value === 'object')) txt = JSON.stringify(pr.value, null, 2);
+          else txt = e.body;
+        } else {
+          txt = JSON.stringify(e.body ?? null, null, 2);
+        }
+        try { await navigator.clipboard.writeText(txt); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyResHeaders').onclick = async function() {
+        const rh = (e.response && e.response.headers) || {};
+        try { await navigator.clipboard.writeText(JSON.stringify(rh, null, 2)); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyResBody').onclick = async function() {
+        const rb = e.response ? e.response.body : undefined;
+        let txt = '';
+        if (typeof rb === 'string') {
+          const pr = tryParseJsonString(rb);
+          if (pr.ok && (Array.isArray(pr.value) || typeof pr.value === 'object')) txt = JSON.stringify(pr.value, null, 2);
+          else txt = rb;
+        } else {
+          txt = JSON.stringify(rb ?? null, null, 2);
+        }
+        try { await navigator.clipboard.writeText(txt); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyReqQuery').onclick = async function() {
+        try { await navigator.clipboard.writeText(JSON.stringify(e.query || {}, null, 2)); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyReqParams').onclick = async function() {
+        try { await navigator.clipboard.writeText(JSON.stringify(e.params || {}, null, 2)); showToast('Copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyMetaBtn').onclick = async function() {
+        var metaObj = {
+          method: e.method,
+          url: e.url,
+          statusCode: e.response && e.response.statusCode,
+          durationMs: e.durationMs,
+          responseSizeBytes: e.responseSizeBytes,
+          contentType: e.contentType,
+          ts: e.ts,
+          requestId: e.requestId || undefined
+        };
+        try { await navigator.clipboard.writeText(JSON.stringify(metaObj, null, 2)); showToast('Meta copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyReqHeadersIcon').onclick = function() { var el = document.getElementById('copyReqHeaders'); if (el) el.click(); };
+      document.getElementById('copyReqBodyIcon').onclick = function() { var el = document.getElementById('copyReqBody'); if (el) el.click(); };
+      document.getElementById('copyReqQueryIcon').onclick = function() { var el = document.getElementById('copyReqQuery'); if (el) el.click(); };
+      document.getElementById('copyReqParamsIcon').onclick = function() { var el = document.getElementById('copyReqParams'); if (el) el.click(); };
+      document.getElementById('copyResHeadersIcon').onclick = function() { var el = document.getElementById('copyResHeaders'); if (el) el.click(); };
+      document.getElementById('copyResBodyIcon').onclick = function() { var el = document.getElementById('copyResBody'); if (el) el.click(); };
+
+      function buildCurl(entry) {
+        const url = window.location.origin + entry.url;
+        const parts = ['curl', '-X', entry.method, JSON.stringify(url)];
+        const headers = entry.headers || {};
+        Object.keys(headers).forEach(function(key) {
+          const low = key.toLowerCase();
+          if (low === 'host' || low === 'content-length' || low === 'connection' || low === 'transfer-encoding') return;
+          const val = headers[key];
+          parts.push('-H');
+          parts.push(JSON.stringify(key + ': ' + String(val)));
+        });
+        let dataTxt = '';
+        if (entry.body !== undefined && entry.body !== null) {
+          if (typeof entry.body === 'string') {
+            dataTxt = entry.body;
+          } else {
+            try { dataTxt = JSON.stringify(entry.body); } catch { dataTxt = String(entry.body); }
+          }
+          parts.push('--data-raw');
+          parts.push(JSON.stringify(dataTxt));
+        }
+        return parts.join(' ');
+      }
+      function showToast(msg) {
+        var t = document.getElementById('toast');
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('show');
+        if (window.__devtoolsToastT) clearTimeout(window.__devtoolsToastT);
+        window.__devtoolsToastT = setTimeout(function(){ t.classList.remove('show'); }, 1600);
+      }
+      document.getElementById('curlBtn').onclick = async function() {
+        try { await navigator.clipboard.writeText(buildCurl(e)); showToast('cURL copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyUrlBtn').onclick = async function() {
+        try { await navigator.clipboard.writeText(window.location.origin + e.url); showToast('URL copied'); } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('copyFetchBtn').onclick = async function() {
+        try {
+          var url = window.location.origin + e.url;
+          var headers = e.headers || {};
+          var method = e.method || 'GET';
+          var body = e.body;
+          var bodyLine = '';
+          if (method !== 'GET' && method !== 'HEAD' && body !== undefined) {
+            if (typeof body === 'string') {
+              var pr = tryParseJsonString(body);
+              bodyLine = ',\n  body: ' + JSON.stringify(pr.ok ? JSON.stringify(pr.value) : body);
+            } else {
+              bodyLine = ',\n  body: ' + JSON.stringify(JSON.stringify(body));
+            }
+          }
+          var snippet = 'fetch(' + JSON.stringify(url) + ', {\n  method: ' + JSON.stringify(method) + ',\n  headers: ' + JSON.stringify(headers, null, 2).replace(/\n/g, '\n  ') + bodyLine + '\n}).then(r => r.json()).then(console.log).catch(console.error);\n';
+          await navigator.clipboard.writeText(snippet);
+          showToast('fetch() snippet copied');
+        } catch { showToast('Failed to copy'); }
+      };
+      document.getElementById('replayBtn').onclick = async function() {
+        try {
+          const res = await fetch(basePath + '/replay' + (tokenQs ? (tokenQs.startsWith('?') ? tokenQs : '?' + tokenQs) : ''), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: entryId })
+          });
+          const json = await res.json();
+          if (!res.ok || !json.ok) throw new Error(json.error || ('HTTP ' + res.status));
+          showToast('Replayed: ' + json.statusCode);
+        } catch (err) { showToast('Replay failed'); }
+      };
+
+      (function addQuickTools(){
+        const btn = document.createElement('button');
+        btn.className = 'btn secondary';
+        btn.textContent = 'Toggle Compact';
+        btn.onclick = function() {
+          resPretty = !resPretty;
+          renderPanels();
+          updateButtons();
+        };
+        document.querySelector('.toolbar').appendChild(btn);
+      })();
+
+      try {
+        const t = e.timings || {};
+        const total = e.durationMs || 0;
+        const wf = document.getElementById('wf');
+        function row(label, value, colorCls) {
+          const pct = total > 0 ? Math.max(1, Math.round((value / total) * 100)) : 0;
+          const div = document.createElement('div');
+          div.className = 'wf-row';
+          div.innerHTML = '<div class="wf-label">' + label + '</div>'
+            + '<div class="wf-bar-wrap"><div class="wf-bar ' + (colorCls||'') + '" style="width:' + pct + '%"></div></div>'
+            + '<div class="wf-dur">' + (value || 0) + ' ms</div>';
+          wf.appendChild(div);
+        }
+        row('Pre-handler', t.preHandlerMs || 0, '');
+        row('Handler', t.handlerMs || 0, 'secondary');
+        row('Send', t.sendMs || 0, 'tertiary');
+        row('Total', total || 0, '');
+        document.getElementById('timingsCard').style.display = '';
+      } catch {}
+    }
+    load();
+  </script>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
