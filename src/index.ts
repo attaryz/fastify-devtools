@@ -4,55 +4,176 @@ import {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
+  RouteOptions,
 } from "fastify"
 import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
-export interface DevtoolsOptions {
-  enabled?: boolean
-  basePath?: string
-  bufferSize?: number
-  token?: string
-  maxBodyBytes?: number
-  persistEnabled?: boolean // requires fastify.mongoose decoration by host app
-  persistTtlDays?: number
-  slowMs?: number // shown in UI labels only
+// Extend Fastify types for DevTools properties
+declare module "fastify" {
+  interface FastifyRequest {
+    __devtoolsId?: string
+    __dev_t_onRequest?: number
+    __dev_t_preHandler?: number
+    __dev_t_onSend?: number
+  }
+
+  interface FastifyInstance {
+    mongoose?: {
+      Schema: any
+      models: Record<string, any>
+      model: (name: string, schema: any) => any
+      connection: {
+        readyState: number
+      }
+      Types: {
+        ObjectId: new (id?: string) => any
+      }
+    }
+  }
 }
 
+/**
+ * Configuration options for the Fastify DevTools plugin
+ */
+export interface DevtoolsOptions {
+  /**
+   * Whether the DevTools plugin is enabled
+   * @default true
+   */
+  enabled?: boolean
+  
+  /**
+   * Base path for DevTools routes
+   * @default "/__devtools"
+   */
+  basePath?: string
+  
+  /**
+   * Maximum number of requests to keep in memory buffer
+   * @default 200
+   */
+  bufferSize?: number
+  
+  /**
+   * Authentication token required to access DevTools endpoints
+   * If not provided, no authentication is required
+   */
+  token?: string
+  
+  /**
+   * Maximum size in bytes for request/response body capture
+   * Bodies larger than this will be truncated
+   * @default 10000
+   */
+  maxBodyBytes?: number
+  
+  /**
+   * Enable persistent storage of requests using MongoDB
+   * Requires fastify.mongoose decoration by host application
+   * @default false
+   */
+  persistEnabled?: boolean
+  
+  /**
+   * Number of days to keep persisted entries before automatic deletion
+   * Only applies when persistEnabled is true
+   * @default 14
+   */
+  persistTtlDays?: number
+  
+  /**
+   * Threshold in milliseconds to consider a request as "slow"
+   * Used for UI labeling purposes only
+   * @default 1000
+   */
+  slowMs?: number
+}
+
+/**
+ * Represents a captured HTTP request/response entry in the DevTools
+ */
 interface DevtoolsEntry {
+  /** Unique identifier for this entry */
   id: string
+  
+  /** Timestamp when the request was received (milliseconds since epoch) */
   ts: number
+  
+  /** HTTP method (GET, POST, etc.) */
   method: string
+  
+  /** Request URL path */
   url: string
+  
+  /** Matched route pattern (if available) */
   route?: string
-  query?: any
-  params?: any
+  
+  /** Query parameters from the request */
+  query?: Record<string, string | string[] | undefined>
+  
+  /** Route parameters from the request */
+  params?: Record<string, string | undefined>
+  
+  /** Request headers (sensitive headers are masked) */
   headers?: Record<string, string>
+  
+  /** Fastify request ID */
   requestId?: string
-  body?: any
+  
+  /** Request body (sensitive fields are masked, may be truncated) */
+  body?: unknown
+  
+  /** Response information */
   response?: {
+    /** HTTP status code */
     statusCode: number
+    /** Response headers (sensitive headers are masked) */
     headers?: Record<string, string>
-    body?: any
+    /** Response body (may be truncated) */
+    body?: unknown
   }
+  
+  /** Total request duration in milliseconds */
   durationMs?: number
+  
+  /** Whether the request/response body was truncated due to size limits */
   truncated?: boolean
+  
+  /** Error message if request processing failed */
   error?: string
+  
+  /** Detailed timing breakdown for request lifecycle phases */
   timings?: {
+    /** Time spent in preHandler hooks (milliseconds) */
     preHandlerMs?: number
+    /** Time spent in route handler (milliseconds) */
     handlerMs?: number
+    /** Time spent sending response (milliseconds) */
     sendMs?: number
   }
+  
+  /** Size of the response body in bytes */
   responseSizeBytes?: number
+  
+  /** Content-Type of the response */
   contentType?: string
 }
 
+/** Headers that contain sensitive information and should be masked */
 const SENSITIVE_HEADERS = ["authorization", "cookie", "x-auth-token"]
+
+/** Object fields that contain sensitive information and should be masked */
 const SENSITIVE_FIELDS = ["password", "token", "jwt", "secret"]
 
+/**
+ * Masks sensitive headers and normalizes header values to strings
+ * @param headers - Raw headers object from request/response
+ * @returns Normalized headers with sensitive values masked
+ */
 function maskHeaders(
-  headers: Record<string, any> = {}
+  headers: Record<string, string | string[] | number | undefined> = {}
 ): Record<string, string> {
   const out: Record<string, string> = {}
   Object.keys(headers).forEach((k) => {
@@ -70,11 +191,16 @@ function maskHeaders(
   return out
 }
 
-function maskObject(obj: any): any {
+/**
+ * Recursively masks sensitive fields in objects and arrays
+ * @param obj - Object to mask sensitive fields in
+ * @returns New object with sensitive fields masked as "[REDACTED]"
+ */
+function maskObject(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj
   if (Array.isArray(obj)) return obj.map(maskObject)
   if (typeof obj === "object") {
-    const o: any = Array.isArray(obj) ? [] : {}
+    const o: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(obj)) {
       if (SENSITIVE_FIELDS.includes(key.toLowerCase())) {
         o[key] = "[REDACTED]"
@@ -87,15 +213,26 @@ function maskObject(obj: any): any {
   return obj
 }
 
-function parseJsonRelaxed(text: string): { ok: boolean; value?: any } {
+/**
+ * Attempts to parse JSON with relaxed rules, handling common prefixes
+ * that prevent standard JSON parsing (like JSONP callbacks, security prefixes)
+ * @param text - String to parse as JSON
+ * @returns Object with success flag and parsed value if successful
+ */
+function parseJsonRelaxed(text: string): { ok: boolean; value?: unknown } {
   if (typeof text !== "string") return { ok: false }
   let t = text.trim()
   if (!t) return { ok: false }
+  
+  // Remove BOM if present
   if (t.charCodeAt(0) === 0xfeff) t = t.slice(1)
+  
+  // Remove common JSON security prefixes
   t = t
     .replace(/^\)\]\}',?\s*/, "")
     .replace(/^while\(1\);\s*/, "")
     .replace(/^for\(;;\);\s*/, "")
+    
   try {
     const v = JSON.parse(t)
     if (typeof v === "string") {
@@ -117,6 +254,21 @@ function parseJsonRelaxed(text: string): { ok: boolean; value?: any } {
   }
 }
 
+/**
+ * Fastify DevTools Plugin
+ * 
+ * Provides a comprehensive development toolkit for monitoring and debugging
+ * HTTP requests and responses in Fastify applications. Features include:
+ * - Real-time request/response capture and inspection
+ * - Request replay functionality
+ * - Optional MongoDB persistence for request history
+ * - Server-sent events for live updates
+ * - Web-based dashboard interface
+ * 
+ * @param fastify - The Fastify instance to register the plugin with
+ * @param opts - Configuration options for the DevTools plugin
+ * @returns Promise that resolves when the plugin is fully registered
+ */
 const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
   fastify: FastifyInstance,
   opts: DevtoolsOptions = {}
@@ -189,7 +341,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
     if (!token) return true
     const provided =
       (request.headers["x-devtools-token"] as string) ||
-      (request.query as any)?.token
+      (request.query as Record<string, string | string[] | undefined>)?.token
     if (provided !== token) {
       reply
         .code(401)
@@ -210,14 +362,14 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
         ts: now,
         method: request.method,
         url: request.url,
-        route: (request as any).routeOptions?.url,
-        query: maskObject(request.query),
-        params: maskObject(request.params),
-        headers: maskHeaders(request.headers as any),
+        route: request.routeOptions?.url,
+        query: maskObject(request.query) as Record<string, string | string[] | undefined>,
+        params: maskObject(request.params) as Record<string, string | undefined>,
+        headers: maskHeaders(request.headers),
         requestId: request.id as string,
       }
-      ;(request as any).__devtoolsId = e.id
-      ;(request as any).__dev_t_onRequest = now
+      request.__devtoolsId = e.id
+      request.__dev_t_onRequest = now
       pending.set(e.id, e)
     }
   )
@@ -226,11 +378,11 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
     "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (isDevtoolsRoute(request.url)) return
-      const id = (request as any).__devtoolsId as string
+      const id = request.__devtoolsId
       const e = id && pending.get(id)
       if (!e) return
       try {
-        const body = (request as any).body
+        const body = request.body
         if (body !== undefined) {
           const json =
             typeof body === "string" ? body : JSON.parse(JSON.stringify(body))
@@ -246,18 +398,19 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
             e.body = masked
           }
         }
-      } catch (err: any) {
-        e.error = `Failed to capture body: ${err?.message || String(err)}`
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        e.error = `Failed to capture body: ${errorMessage}`
       }
-      ;(request as any).__dev_t_preHandler = Date.now()
+      request.__dev_t_preHandler = Date.now()
     }
   )
 
   fastify.addHook(
     "onSend",
-    async (request: FastifyRequest, reply: FastifyReply, payload: any) => {
+    async (request: FastifyRequest, reply: FastifyReply, payload: unknown) => {
       if (isDevtoolsRoute(request.url)) return payload
-      const id = (request as any).__devtoolsId as string
+      const id = request.__devtoolsId
       const e = id && pending.get(id)
       if (!e) return payload
 
@@ -271,14 +424,14 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
           bodyText = JSON.stringify(payload)
         }
         const resp = (e.response =
-          e.response ?? ({ statusCode: reply.statusCode } as any))
+          e.response ?? ({ statusCode: reply.statusCode }))
         if (bodyText) {
           try {
             e.responseSizeBytes = Buffer.byteLength(bodyText, "utf8")
           } catch {}
         }
         if (bodyText) {
-          let parsed: any
+          let parsed: unknown
           let parsedOk = false
           const pr = parseJsonRelaxed(bodyText)
           if (pr.ok) {
@@ -310,19 +463,18 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
             }
           }
         }
-        const hdrs = (reply as any).getHeaders
-          ? (reply as any).getHeaders()
-          : (reply.raw as any)?.getHeaders?.() ?? {}
-        resp.headers = maskHeaders(hdrs as any)
+        const hdrs = reply.getHeaders ? reply.getHeaders() : ({} as Record<string, string | string[] | number | undefined>)
+        resp.headers = maskHeaders(hdrs)
         try {
-          e.contentType = String(
-            (hdrs as any)["content-type"] || (hdrs as any)["Content-Type"] || ""
-          )
+          const headers = hdrs as Record<string, string | string[] | number | undefined>
+          const contentTypeHeader = headers["content-type"] || headers["Content-Type"]
+          e.contentType = String(contentTypeHeader || "")
         } catch {}
-      } catch (err: any) {
-        e.error = `Failed to capture response: ${err?.message || String(err)}`
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        e.error = `Failed to capture response: ${errorMessage}`
       }
-      ;(request as any).__dev_t_onSend = Date.now()
+      request.__dev_t_onSend = Date.now()
       return payload
     }
   )
@@ -331,14 +483,14 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
     "onResponse",
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (isDevtoolsRoute(request.url)) return
-      const id = (request as any).__devtoolsId as string
+      const id = request.__devtoolsId
       const e = id && pending.get(id)
       if (!e) return
       const tResp = Date.now()
       e.durationMs = tResp - e.ts
-      const tReq = (request as any).__dev_t_onRequest as number | undefined
-      const tPre = (request as any).__dev_t_preHandler as number | undefined
-      const tSend = (request as any).__dev_t_onSend as number | undefined
+      const tReq = request.__dev_t_onRequest
+      const tPre = request.__dev_t_preHandler
+      const tSend = request.__dev_t_onSend
       if (!e.timings) e.timings = {}
       if (tReq && tPre && tPre >= tReq) e.timings.preHandlerMs = tPre - tReq
       if (tPre && tSend && tSend >= tPre) e.timings.handlerMs = tSend - tPre
@@ -354,7 +506,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
   let DevEntryModel: any = null
   function ensureModel() {
     if (!persistEnabled) return
-    const m = (fastify as any).mongoose
+    const m = fastify.mongoose
     if (!m || DevEntryModel) return
     const Schema = m.Schema
     const schema = new Schema(
@@ -400,7 +552,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
   }
   function isMongoReady() {
     try {
-      const m = (fastify as any).mongoose
+      const m = fastify.mongoose
       return !!m && m.connection && m.connection.readyState === 1
     } catch {
       return false
@@ -465,14 +617,14 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
       ensureModel()
       if (!DevEntryModel) return reply.send([])
       if (!isMongoReady()) return reply.send([])
-      const q = request.query as any
-      const limit = Math.min(200, Math.max(1, parseInt(q.limit || "50")))
+      const q = request.query as Record<string, string | string[] | undefined>
+      const limit = Math.min(200, Math.max(1, parseInt(String(q.limit || "50"))))
       const beforeId = q.beforeId as string | undefined
-      const filter: any = {}
+      const filter: Record<string, any> = {}
       if (q.method) filter.method = String(q.method).toUpperCase()
       if (q.status) {
         const band = String(q.status)
-        const map: any = {
+        const map: Record<string, [number, number]> = {
           "2xx": [200, 300],
           "3xx": [300, 400],
           "4xx": [400, 500],
@@ -487,7 +639,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
         } catch {}
       }
       if (q.from || q.to) {
-        const r: any = {}
+        const r: Record<string, Date> = {}
         if (q.from) {
           const d = new Date(String(q.from))
           if (!isNaN(+d)) r.$gte = d
@@ -500,7 +652,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
       }
       try {
         if (beforeId) {
-          const OID = (fastify as any).mongoose?.Types?.ObjectId
+          const OID = fastify.mongoose?.Types?.ObjectId
           if (OID) filter._id = { $lt: new OID(beforeId) }
         }
       } catch {}
@@ -520,12 +672,12 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
       ensureModel()
       if (!DevEntryModel) return reply.send([])
       if (!isMongoReady()) return reply.send([])
-      const q = request.query as any
-      const limit = Math.min(5000, Math.max(1, parseInt(q.limit || "1000")))
-      const filter: any = {}
+      const q = request.query as Record<string, string | string[] | undefined>
+      const limit = Math.min(5000, Math.max(1, parseInt(String(q.limit || "1000"))))
+      const filter: Record<string, any> = {}
       if (q.method) filter.method = String(q.method).toUpperCase()
       if (q.status) {
-        const map: any = {
+        const map: Record<string, [number, number]> = {
           "2xx": [200, 300],
           "3xx": [300, 400],
           "4xx": [400, 500],
@@ -536,7 +688,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
       }
       if (q.q) filter.$or = [{ url: { $regex: String(q.q), $options: "i" } }]
       if (q.from || q.to) {
-        const r: any = {}
+        const r: Record<string, Date> = {}
         if (q.from) {
           const d = new Date(String(q.from))
           if (!isNaN(+d)) r.$gte = d
@@ -564,12 +716,12 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
       ensureModel()
       if (!DevEntryModel) return reply.send("")
       if (!isMongoReady()) return reply.send("")
-      const q = request.query as any
-      const limit = Math.min(100000, Math.max(1, parseInt(q.limit || "10000")))
-      const filter: any = {}
+      const q = request.query as Record<string, string | string[] | undefined>
+      const limit = Math.min(100000, Math.max(1, parseInt(String(q.limit || "10000"))))
+      const filter: Record<string, any> = {}
       if (q.method) filter.method = String(q.method).toUpperCase()
       if (q.status) {
-        const map: any = {
+        const map: Record<string, [number, number]> = {
           "2xx": [200, 300],
           "3xx": [300, 400],
           "4xx": [400, 500],
@@ -580,7 +732,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
       }
       if (q.q) filter.$or = [{ url: { $regex: String(q.q), $options: "i" } }]
       if (q.from || q.to) {
-        const r: any = {}
+        const r: Record<string, Date> = {}
         if (q.from) {
           const d = new Date(String(q.from))
           if (!isNaN(+d)) r.$gte = d
@@ -602,7 +754,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
         .sort({ _id: -1 })
         .limit(limit)
         .cursor()
-      cursor.on("data", (doc: any) => {
+      cursor.on("data", (doc: unknown) => {
         try {
           reply.raw.write(JSON.stringify(doc) + "\n")
         } catch {}
@@ -629,13 +781,13 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
     `${basePath}/requests/:id`,
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!(await requireAuth(request, reply))) return
-      const { id } = request.params as any
+      const { id } = request.params as Record<string, string>
       let entry = buffer.find((x) => x.id === id) || pending.get(id)
       if (!entry && persistEnabled) {
         ensureModel()
         if (DevEntryModel) {
           const doc = await DevEntryModel.findOne({ id }).lean()
-          if (doc) entry = doc as any
+          if (doc) entry = doc as DevtoolsEntry
         }
       }
       if (!entry)
@@ -650,7 +802,7 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
     `${basePath}/entry/:id`,
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!(await requireAuth(request, reply))) return
-      const { id } = request.params as any
+      const { id } = request.params as Record<string, string>
       const tpl = await loadView("entry.html")
       const html = renderTemplate(tpl, {
         BASE_PATH: JSON.stringify(basePath),
@@ -696,39 +848,40 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!(await requireAuth(request, reply))) return
       try {
-        const body = (request.body || {}) as any
-        let source: any = null
+        const body = (request.body || {}) as Record<string, unknown>
+        let source: DevtoolsEntry | null = null
         if (body.id) {
           const id = String(body.id)
-          source = buffer.find((x) => x.id === id) || pending.get(id)
+          source = buffer.find((x) => x.id === id) || pending.get(id) || null
           if (!source && persistEnabled) {
             ensureModel()
             if (DevEntryModel) {
-              source = await DevEntryModel.findOne({ id }).lean()
+              const doc = await DevEntryModel.findOne({ id }).lean()
+              source = doc ? (doc as DevtoolsEntry) : null
             }
           }
           if (!source)
             return reply.code(404).send({ ok: false, error: "Entry not found" })
         }
-        const method = (body.method || source?.method || "GET").toUpperCase()
+        const method = (body.method || source?.method || "GET").toString().toUpperCase()
         const urlPath = String(body.url || source?.url || "/")
         if (isDevtoolsRoute(urlPath))
           return reply
             .code(400)
             .send({ ok: false, error: "Cannot replay devtools URLs" })
-        const hdrs: Record<string, any> = {
+        const hdrs: Record<string, unknown> = {
           ...(source?.headers || {}),
-          ...(body.headers || {}),
+          ...(body.headers as Record<string, unknown> || {}),
         }
         delete hdrs["host"]
         delete hdrs["connection"]
         delete hdrs["content-length"]
         delete hdrs["transfer-encoding"]
-        const headers: Record<string, any> = {}
+        const headers: Record<string, string> = {}
         Object.keys(hdrs).forEach((k) => {
-          if (hdrs[k] != null) headers[k.toLowerCase()] = hdrs[k]
+          if (hdrs[k] != null) headers[k.toLowerCase()] = String(hdrs[k])
         })
-        let payload: any = body.body !== undefined ? body.body : source?.body
+        let payload: unknown = body.body !== undefined ? body.body : source?.body
         try {
           if (typeof payload === "string") {
             const pr = parseJsonRelaxed(payload)
@@ -736,19 +889,28 @@ const devtoolsPlugin: FastifyPluginAsync<DevtoolsOptions> = async (
           }
         } catch {}
         const res = await fastify.inject({
-          method,
+          method: method as "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD" | "OPTIONS",
           url: urlPath,
           headers,
-          payload,
+          payload: payload as string | object | Buffer | undefined,
         })
+        
+        // Type the response properly
+        const response = res as {
+          statusCode: number
+          headers: Record<string, string | string[]>
+          body: string | Buffer | object
+        }
+        
         reply.send({
           ok: true,
-          statusCode: res.statusCode,
-          headers: res.headers,
-          body: (res as any).body?.slice?.(0, 2048),
+          statusCode: response.statusCode,
+          headers: response.headers,
+          body: typeof response.body === 'string' ? response.body.slice(0, 2048) : response.body,
         })
-      } catch (err: any) {
-        reply.code(500).send({ ok: false, error: err?.message || String(err) })
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        reply.code(500).send({ ok: false, error: errorMessage })
       }
     }
   )
