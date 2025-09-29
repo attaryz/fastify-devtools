@@ -1,6 +1,6 @@
 {
   "name": "@attaryz/fastify-devtools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fastify DevTools plugin: dashboard, entry view, metrics, replay, and storage",
   "keywords": [
     "fastify",
