@@ -52,10 +52,25 @@
     #pausedNew { display: none; background: #6b7280; }
     /* Metrics */
     .metrics { margin: 14px 0; }
-    .metrics-cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
+    .metrics-cards { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
     .metric-card { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; padding: 10px 12px; }
     .metric-card .label { font-size: 11px; color:#6b7280; text-transform: uppercase; letter-spacing: .04em; }
     .metric-card .value { font-size: 18px; font-weight: 700; color:#0f172a; }
+    .metric-card.redis { border-color: #dc2626; }
+    .metric-card.redis .label { color: #dc2626; }
+    .metric-card.ws { border-color: #2563eb; }
+    .metric-card.ws .label { color: #2563eb; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; }
+    .tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; color: #6b7280; }
+    .tab.active { color: #0f172a; border-bottom-color: #2563eb; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .redis-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .cache-hit { background: #d1fae5; color: #065f46; }
+    .cache-miss { background: #fee2e2; color: #991b1b; }
+    .ws-direction { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .ws-incoming { background: #dbeafe; color: #1e40af; }
+    .ws-outgoing { background: #fef3c7; color: #92400e; }
     .routes-metrics table thead th { background: #f1f5f9; }
     /* Loading spinners */
     .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: spin 1s linear infinite; vertical-align: middle; }
@@ -145,6 +160,8 @@
         <div class="metric-card"><div class="label">Error Rate</div><div class="value" id="mError">0%</div></div>
         <div class="metric-card"><div class="label">p95</div><div class="value" id="mP95">0 ms</div></div>
         <div class="metric-card"><div class="label">p99</div><div class="value" id="mP99">0 ms</div></div>
+        <div class="metric-card redis"><div class="label">🔴 Redis</div><div class="value" id="mRedis">N/A</div></div>
+        <div class="metric-card ws"><div class="label">🔌 WebSocket</div><div class="value" id="mWS">0</div></div>
       </div>
       <div class="routes-metrics">
         <table>
@@ -160,19 +177,44 @@
         </table>
       </div>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th data-sort="ts" class="sortable">Time</th>
-          <th data-sort="method" class="sortable">Method</th>
-          <th data-sort="status" class="sortable">Status</th>
-          <th data-sort="duration" class="sortable">Duration</th>
-          <th data-sort="url" class="sortable">URL</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+    
+    <div class="tabs">
+      <div class="tab active" data-tab="http">HTTP Requests</div>
+      <div class="tab" data-tab="websocket">WebSocket Messages</div>
+    </div>
+    
+    <div class="tab-content active" id="tab-http">
+      <table>
+        <thead>
+          <tr>
+            <th data-sort="ts" class="sortable">Time</th>
+            <th data-sort="method" class="sortable">Method</th>
+            <th data-sort="status" class="sortable">Status</th>
+            <th data-sort="duration" class="sortable">Duration</th>
+            <th data-sort="url" class="sortable">URL</th>
+            <th>Redis</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    
+    <div class="tab-content" id="tab-websocket">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Direction</th>
+            <th>Connection ID</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Payload</th>
+          </tr>
+        </thead>
+        <tbody id="wsTbody"></tbody>
+      </table>
+    </div>
   </div>
   <script>
     const tbody = document.getElementById('tbody');
@@ -209,6 +251,11 @@
     const routesMetricsBody = document.getElementById('routesMetrics');
     const globalSpinner = document.getElementById('globalSpinner');
     const moreBtn = document.getElementById('moreBtn');
+    const mRedis = document.getElementById('mRedis');
+    const mWS = document.getElementById('mWS');
+    const wsTbody = document.getElementById('wsTbody');
+    const wsMessages = [];
+    let redisStatus = null;
 
     function fmtTime(ts) {
       try { return new Date(ts).toLocaleTimeString(); } catch { return String(ts); }
@@ -295,12 +342,20 @@
         const isSlow = typeof e.durationMs === 'number' && e.durationMs > slowMs;
         if (isSlow) tr.classList.add('slow-row');
         const durationCell = (e.durationMs || '') + ' ms' + (isSlow ? ' <span class="slow-badge" title=">' + slowMs + ' ms">SLOW</span>' : '');
+        let redisCell = '';
+        if (e.redis && Array.isArray(e.redis) && e.redis.length > 0) {
+          const hits = e.redis.filter(r => r.cacheHit).length;
+          const misses = e.redis.filter(r => r.cacheHit === false).length;
+          if (hits > 0) redisCell += '<span class="redis-badge cache-hit" title="Cache hits">✓ ' + hits + '</span> ';
+          if (misses > 0) redisCell += '<span class="redis-badge cache-miss" title="Cache misses">✗ ' + misses + '</span>';
+        }
         tr.innerHTML = [
           '<td>' + fmtTime(e.ts) + '</td>',
           '<td><span class="method-badge ' + e.method + '">' + e.method + '</span></td>',
           '<td class="status ' + scCls + '">' + (sc || '') + '</td>',
           '<td>' + durationCell + '</td>',
           '<td class="url-cell"><code title=' + JSON.stringify(e.url) + '>' + e.url + '</code></td>',
+          '<td>' + redisCell + '</td>',
           '<td>'
             + '<a class="btn-link" href=' + JSON.stringify(basePath + '/entry/' + e.id + (tokenQs || '')) + '>Open</a>'
             + ' · <a class="btn-link" data-action="replay" data-id=' + JSON.stringify(e.id) + '>Replay</a>'
@@ -313,6 +368,54 @@
       if (localStorage.getItem('devtools.autoScroll') !== 'false' && !paused) {
         window.scrollTo({ top: 0, behavior: 'auto' });
       }
+    }
+
+    function renderWebSockets() {
+      wsTbody.innerHTML = '';
+      const messages = wsMessages.slice(-100).reverse();
+      for (const msg of messages) {
+        const tr = document.createElement('tr');
+        const dirClass = msg.direction === 'incoming' ? 'ws-incoming' : 'ws-outgoing';
+        const dirIcon = msg.direction === 'incoming' ? '⬇' : '⬆';
+        const payloadStr = typeof msg.payload === 'string' ? msg.payload : JSON.stringify(msg.payload);
+        const payloadPreview = payloadStr.length > 100 ? payloadStr.slice(0, 100) + '...' : payloadStr;
+        tr.innerHTML = [
+          '<td>' + fmtTime(msg.ts) + '</td>',
+          '<td><span class="ws-direction ' + dirClass + '">' + dirIcon + ' ' + msg.direction + '</span></td>',
+          '<td><code>' + (msg.connectionId || '').slice(0, 8) + '</code></td>',
+          '<td>' + (msg.type || 'message') + '</td>',
+          '<td>' + (msg.sizeBytes || 0) + ' B</td>',
+          '<td><code title=' + JSON.stringify(payloadStr) + '>' + payloadPreview + '</code></td>'
+        ].join('');
+        wsTbody.appendChild(tr);
+      }
+      mWS.textContent = String(wsMessages.length);
+    }
+
+    async function fetchRedisStatus() {
+      try {
+        const res = await fetch(basePath + '/redis/status' + tokenQs);
+        redisStatus = await res.json();
+        if (redisStatus && redisStatus.detected) {
+          mRedis.textContent = redisStatus.status || 'Connected';
+        } else {
+          mRedis.textContent = 'Not Detected';
+        }
+      } catch {
+        mRedis.textContent = 'Error';
+      }
+    }
+
+    async function fetchWebSockets() {
+      try {
+        const res = await fetch(basePath + '/websockets' + tokenQs);
+        const messages = await res.json();
+        if (Array.isArray(messages)) {
+          wsMessages.length = 0;
+          wsMessages.push(...messages);
+          renderWebSockets();
+        }
+      } catch {}
     }
 
     function buildStorageQuery(extra) {
@@ -408,13 +511,25 @@
       const es = new EventSource(basePath + '/events' + tokenQs);
       es.onmessage = (ev) => {
         try {
-          const e = JSON.parse(ev.data);
-          if (paused) {
-            pausedQueue.push(e);
-            updatePausedBadge();
+          const data = JSON.parse(ev.data);
+          // Check if it's a WebSocket message
+          if (data.type === 'websocket' && data.message) {
+            wsMessages.push(data.message);
+            while (wsMessages.length > 200) wsMessages.shift();
+            if (document.querySelector('.tab[data-tab="websocket"]').classList.contains('active')) {
+              renderWebSockets();
+            }
+            mWS.textContent = String(wsMessages.length);
           } else {
-            entries.push(e);
-            render();
+            // Regular HTTP request entry
+            const e = data;
+            if (paused) {
+              pausedQueue.push(e);
+              updatePausedBadge();
+            } else {
+              entries.push(e);
+              render();
+            }
           }
         } catch (err) { console.error('Failed to parse event', err); }
       };
@@ -583,6 +698,30 @@
         } catch (err) { alert('Replay failed: ' + (err && err.message || String(err))); }
       }
     });
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.getAttribute('data-tab');
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+        if (tabName === 'websocket') {
+          fetchWebSockets();
+        }
+      });
+    });
+
+    // Initialize WebSocket and Redis data
+    fetchRedisStatus();
+    fetchWebSockets();
+    setInterval(() => {
+      fetchRedisStatus();
+      if (document.querySelector('.tab[data-tab="websocket"]').classList.contains('active')) {
+        fetchWebSockets();
+      }
+    }, 5000);
 
     loadInitial();
     connectSSE();

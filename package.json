@@ -1,7 +1,7 @@
 {
   "name": "@attaryz/fastify-devtools",
-  "version": "0.2.0",
-  "description": "Fastify DevTools plugin: dashboard, entry view, metrics, replay, and storage",
+  "version": "0.4.0",
+  "description": "Fastify DevTools plugin: dashboard, entry view, metrics, replay, WebSocket capture, Redis tracking, and storage",
   "keywords": [
     "fastify",
     "devtools",
@@ -10,7 +10,10 @@
     "dashboard",
     "plugin",
     "monitoring",
-    "metrics"
+    "metrics",
+    "websocket",
+    "redis",
+    "cache"
   ],
   "license": "MIT",
   "author": "Abdullah Ali",
@@ -29,6 +32,11 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "require": "./dist/types.js",
+      "default": "./dist/types.js"
     }
   },
   "files": [
@@ -38,12 +46,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node ./scripts/copy-views.js",
     "clean": "rimraf dist",
+    "test": "tap test/**/*.test.ts",
+    "test:watch": "tap test/**/*.test.ts --watch",
     "prepublishOnly": "npm run clean && npm run build",
     "publish": "npm publish --access public"
   },
   "peerDependencies": {
-    "fastify": ">=4.0.0",
-    "fastify-plugin": ">=4.0.0",
+    "fastify": ">=5.0.0",
+    "fastify-plugin": ">=5.0.0",
     "mongoose": ">=6.0.0"
   },
   "peerDependenciesMeta": {
@@ -53,9 +63,13 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "fastify": "^4.0.0",
-    "fastify-plugin": "^4.0.0",
+    "@types/tap": "^15.0.11",
+    "fastify": "^5.0.0",
+    "fastify-plugin": "^5.0.0",
+    "mongoose": "^8.0.0",
     "rimraf": "^5.0.0",
+    "tap": "^18.0.0",
+    "ts-node": "^10.9.0",
     "typescript": "^5.4.0"
   }
 }
