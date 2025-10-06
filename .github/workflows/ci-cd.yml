@@ -55,7 +55,7 @@ jobs:
         run: yarn biome:ci
 
       - name: Run tests
-        run: yarn test
+        run: yarn test:ci
 
       - name: Build project
         run: yarn build

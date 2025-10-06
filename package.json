@@ -48,6 +48,7 @@
     "build": "tsc -p tsconfig.json && node ./scripts/copy-views.js",
     "clean": "rimraf dist",
     "test": "tap -r ts-node/register test/**/*.test.ts",
+    "test:ci": "tap -r ts-node/register --disable-coverage test/**/*.test.ts",
     "test:watch": "tap -r ts-node/register test/**/*.test.ts --watch",
     "prepublishOnly": "npm run clean && npm run build",
     "publish": "npm publish --access public",
