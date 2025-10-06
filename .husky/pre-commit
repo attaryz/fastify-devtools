@@ -1,8 +1,11 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Check if version bump is included when committing code changes
-yarn node scripts/check-version-bump.js || exit 1
+# Run TypeScript compiler on staged files
+yarn tsc --project tsconfig.json --noEmit || exit 1
+
+# Run formatter on staged files
+yarn biome format --check || exit 1
 
 # Run Biome on staged files via lint-staged
 yarn lint-staged

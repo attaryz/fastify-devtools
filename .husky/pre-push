@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Enforce version bump for main branch pushes
+# Skip with SKIP_VERSION_CHECK=1
+
+yarn node scripts/check-version-bump-on-push.js || exit 1

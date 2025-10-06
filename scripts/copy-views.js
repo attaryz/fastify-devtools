@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("node:fs");
+const path = require("node:path");
 
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -13,7 +13,7 @@ function copyDir(src, dest) {
   }
 }
 
-const srcDir = path.resolve(__dirname, '..', 'src', 'views');
-const destDir = path.resolve(__dirname, '..', 'dist', 'views');
+const srcDir = path.resolve(__dirname, "..", "src", "views");
+const destDir = path.resolve(__dirname, "..", "dist", "views");
 copyDir(srcDir, destDir);
-console.log('Copied views to', destDir);
+console.log("Copied views to", destDir);

@@ -1,5 +1,5 @@
-import fs from "node:fs"
-import path from "node:path"
+import fs from "node:fs";
+import path from "node:path";
 
 /**
  * Get candidate paths for a view file
@@ -14,33 +14,33 @@ export function viewCandidates(name: string): string[] {
       "fastify-devtools",
       "dist",
       "views",
-      name
+      name,
     ),
-  ]
+  ];
 }
 
 /**
  * Load a view file from possible locations
  */
 export async function loadView(name: string): Promise<string> {
-  const candidates = viewCandidates(name)
+  const candidates = viewCandidates(name);
   for (const p of candidates) {
     try {
       if (fs.existsSync(p)) {
-        return await fs.promises.readFile(p, "utf8")
+        return await fs.promises.readFile(p, "utf8");
       }
     } catch {}
   }
-  throw new Error(`DevTools view not found: ${name}`)
+  throw new Error(`DevTools view not found: ${name}`);
 }
 
 /**
  * Render a template with variable substitution
  */
 export function renderTemplate(tpl: string, vars: Record<string, string>): string {
-  let out = tpl
+  let out = tpl;
   for (const [k, v] of Object.entries(vars)) {
-    out = out.split(`{{${k}}}`).join(v)
+    out = out.split(`{{${k}}}`).join(v);
   }
-  return out
+  return out;
 }

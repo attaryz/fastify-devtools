@@ -55,6 +55,7 @@
     "lint:fix": "biome lint --write .",
     "biome": "biome check .",
     "biome:fix": "biome check --write .",
+    "biome:fix:unsafe": "biome check --write --unsafe .",
     "biome:ci": "biome ci",
     "prepare": "husky"
   },
