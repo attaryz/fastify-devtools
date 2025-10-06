@@ -11,10 +11,6 @@ import "./types" // Import module augmentation
 // Re-export types for consumers
 export type { DevtoolsOptions, DevtoolsEntry, WebSocketMessage } from "./types"
 
-// Utils
-import { maskHeaders, maskObject } from "./utils/masking"
-import { parseJsonRelaxed } from "./utils/json"
-
 // Hooks
 import { onRequestHook, preHandlerHook, onSendHook, onResponseHook } from "./hooks/lifecycle"
 

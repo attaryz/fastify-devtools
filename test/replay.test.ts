@@ -1,3 +1,11 @@
+/**
+ * Tests request replay functionality via `POST /__devtools/replay`:
+ * - Replays GET/POST with captured IDs
+ * - Supports custom body/headers on replay
+ * - Handles non-existent IDs and error replays gracefully
+ * - Preserves query parameters on replay
+ * - Respects auth token when configured
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'

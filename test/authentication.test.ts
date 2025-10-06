@@ -1,3 +1,10 @@
+/**
+ * Tests authentication and access control for DevTools endpoints:
+ * - Unprotected access when no token configured
+ * - 401 responses when token is required but missing/empty/wrong
+ * - Header vs query token precedence
+ * - Protection of requests/status/clear/events endpoints
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'

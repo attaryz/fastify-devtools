@@ -1,3 +1,9 @@
+/**
+ * Tests Redis tracking integration at the plugin level:
+ * - Detection via fastify.redis and fastify.ioredis
+ * - `/__devtools/redis/status` endpoint auth/behavior
+ * - Tracking operations within request entries and helper decoration
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'

@@ -1,3 +1,9 @@
+/**
+ * Tests core plugin registration behaviors:
+ * - Registers with default and custom options
+ * - Registers/no-registers routes based on `enabled`
+ * - Serves dashboard when enabled
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'

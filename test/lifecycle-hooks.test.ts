@@ -1,3 +1,10 @@
+/**
+ * Tests request lifecycle capture and metrics:
+ * - Timing breakdown (preHandler/handler/send)
+ * - Route/params capture and response size/content-type
+ * - Error capture and multi-method handling
+ * - Buffer size enforcement and request IDs
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'

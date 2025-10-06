@@ -1,3 +1,10 @@
+/**
+ * Tests MongoDB persistence integration (mocked mongoose):
+ * - Works with persistEnabled on/off and Mongo readiness
+ * - Storage endpoints: list, clear, export JSON/NDJSON
+ * - Auth protection for storage routes
+ * - Date range and pagination filters, error handling paths
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'
@@ -17,7 +24,17 @@ const mockModel = {
   find: () => ({
     sort: () => ({
       limit: () => ({
-        lean: () => Promise.resolve([])
+        lean: () => Promise.resolve([]),
+        cursor: () => {
+          // Minimal EventEmitter that immediately ends
+          const { EventEmitter } = require('events')
+          const ee = new EventEmitter()
+          // End on next tick to simulate async streaming
+          process.nextTick(() => {
+            ee.emit('end')
+          })
+          return ee
+        }
       })
     })
   }),

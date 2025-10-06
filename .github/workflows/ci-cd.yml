@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Biome (lint + format check)
+        run: yarn biome:ci
+
       - name: Run tests
         run: yarn test
 

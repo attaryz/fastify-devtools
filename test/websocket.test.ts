@@ -1,3 +1,8 @@
+/**
+ * Tests end-to-end WebSocket integration at plugin level:
+ * - Skips when @fastify/websocket is not installed (optional dependency)
+ * - When available, ensures tracker wiring does not break status endpoint
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'

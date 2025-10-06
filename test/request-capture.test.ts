@@ -1,3 +1,9 @@
+/**
+ * Tests core request/response capture features:
+ * - Captures GET/POST, headers and bodies (with masking & truncation)
+ * - DevTools routes are excluded from capture
+ * - Verifies response metadata (statusCode, headers)
+ */
 import { test } from 'tap'
 import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'
