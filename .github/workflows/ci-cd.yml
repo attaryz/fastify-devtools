@@ -11,6 +11,8 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    env:
+      YARN_IGNORE_PATH: 1
 
     strategy:
       matrix:
@@ -20,20 +22,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Enable Corepack (use repo Yarn version)
+        run: corepack enable
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           check-latest: true
-
-      - name: Enable Corepack (use repo Yarn version)
-        run: corepack enable
+          package-manager-cache: false
 
       - name: Prepare Yarn 4.3.1
         run: corepack prepare yarn@4.3.1 --activate
 
       - name: Verify Yarn version
-        run: yarn -v
+        run: corepack yarn -v
 
       - name: Cache Yarn (Berry) artifacts
         uses: actions/cache@v4
@@ -44,16 +47,16 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: corepack yarn install --immutable
 
       - name: Biome (lint + format check)
-        run: yarn biome:ci
+        run: corepack yarn biome:ci
 
       - name: Run tests
-        run: yarn test
+        run: corepack yarn test
 
       - name: Build project
-        run: yarn build
+        run:  
 
       - name: Upload build artifacts
         if: matrix.node-version == '20.x'
@@ -67,24 +70,28 @@ jobs:
     needs: test-and-build
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
+    env:
+      YARN_IGNORE_PATH: 1
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Enable Corepack (use repo Yarn version)
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "20.x"
           check-latest: true
-
-      - name: Enable Corepack (use repo Yarn version)
-        run: corepack enable
+          package-manager-cache: false
 
       - name: Prepare Yarn 4.3.1
         run: corepack prepare yarn@4.3.1 --activate
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: corepack yarn install --immutable
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
