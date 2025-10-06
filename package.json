@@ -43,11 +43,12 @@
     "dist"
   ],
   "sideEffects": false,
+  "packageManager": "yarn@4.3.1",
   "scripts": {
     "build": "tsc -p tsconfig.json && node ./scripts/copy-views.js",
     "clean": "rimraf dist",
-    "test": "tap test/**/*.test.ts",
-    "test:watch": "tap test/**/*.test.ts --watch",
+    "test": "tap -r ts-node/register test/**/*.test.ts",
+    "test:watch": "tap -r ts-node/register test/**/*.test.ts --watch",
     "prepublishOnly": "npm run clean && npm run build",
     "publish": "npm publish --access public",
     "format": "biome format --write .",

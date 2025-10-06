@@ -30,7 +30,7 @@ jobs:
         run: corepack enable
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Biome (lint + format check)
         run: yarn biome:ci
@@ -57,16 +57,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
           cache: "yarn"
-          registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack (use repo Yarn version)
+        run: corepack enable
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
