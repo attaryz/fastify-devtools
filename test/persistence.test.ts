@@ -3,6 +3,35 @@ import Fastify from 'fastify'
 import devtoolsPlugin from '../src/index'
 
 // Mock mongoose for testing
+class MockSchema {
+  static Types = {
+    Mixed: class Mixed {},
+    ObjectId: class ObjectId {}
+  }
+  
+  constructor(_definition: any, _options?: any) {}
+  index(_fields: any, _options?: any) {}
+}
+
+const mockModel = {
+  find: () => ({
+    sort: () => ({
+      limit: () => ({
+        lean: () => Promise.resolve([])
+      })
+    })
+  }),
+  findOne: () => ({
+    lean: () => Promise.resolve(null)
+  }),
+  create: () => Promise.resolve({ _id: 'test-id' }),
+  deleteMany: () => Promise.resolve({ deletedCount: 0 }),
+  createIndexes: () => Promise.resolve(),
+  collection: {
+    createIndex: () => Promise.resolve()
+  }
+}
+
 const mockMongoose = {
   connection: {
     readyState: 1,
@@ -22,29 +51,14 @@ const mockMongoose = {
       })
     }
   },
-  model: () => ({
-    find: () => ({
-      sort: () => ({
-        limit: () => ({
-          lean: () => Promise.resolve([])
-        })
-      })
-    }),
-    findOne: () => ({
-      lean: () => Promise.resolve(null)
-    }),
-    create: () => Promise.resolve({ _id: 'test-id' }),
-    deleteMany: () => Promise.resolve({ deletedCount: 0 }),
-    collection: {
-      createIndex: () => Promise.resolve()
-    }
-  }),
-  Schema: class {
-    constructor() {}
-    index(_fields: any, _options?: any) {}
+  models: {
+    DevtoolsEntry: mockModel
   },
+  model: (_name: string, _schema?: any) => mockModel,
+  Schema: MockSchema,
   Types: {
-    Mixed: class Mixed {}
+    Mixed: class Mixed {},
+    ObjectId: class ObjectId {}
   }
 }
 
