@@ -41,7 +41,10 @@ const mockMongoose = {
   }),
   Schema: class {
     constructor() {}
-    index(fields: any, options?: any) {}
+    index(_fields: any, _options?: any) {}
+  },
+  Types: {
+    Mixed: class Mixed {}
   }
 }
 

@@ -10,7 +10,7 @@ class MockRedisClient {
     return this.store.get(key) || null
   }
   
-  async set(key: string, value: string, ...args: any[]) {
+  async set(key: string, value: string, ..._args: any[]) {
     this.store.set(key, value)
     return 'OK'
   }
