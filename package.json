@@ -1,6 +1,6 @@
 {
   "name": "@attaryz/fastify-devtools",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Fastify DevTools plugin: dashboard, entry view, metrics, replay, WebSocket capture, Redis tracking, and storage",
   "keywords": [
     "fastify",
