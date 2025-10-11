@@ -7,7 +7,6 @@ Fastify DevTools plugin: live request dashboard, entry details view, copy helper
 - **Node.js**: 20.x or higher
 - **Fastify**: 5.x (for Fastify v4 support, use `@attaryz/fastify-devtools@0.3.x`)
 
-> **Note:** Fastify v5 requires Node.js 20+. See [UPGRADE-TO-V5.md](./UPGRADE-TO-V5.md) for migration guide.
 
 ## Install
 
